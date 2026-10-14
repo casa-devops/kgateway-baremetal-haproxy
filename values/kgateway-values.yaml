@@ -1,0 +1,4 @@
+# Única alteração em relação aos defaults do chart kgateway v2.4.3.
+# Também define a tag padrão das imagens dos proxies Envoy (KGW_DEFAULT_IMAGE_TAG).
+image:
+  tag: v2.4.3
