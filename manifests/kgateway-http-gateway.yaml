@@ -1,0 +1,47 @@
+---
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: GatewayParameters
+metadata:
+  name: http-gateway-parameters
+  namespace: kgateway-system
+spec:
+  kube:
+    deployment:
+      replicas: 3
+    podTemplate:
+      extraLabels:
+        gateway-proxy: http-gateway
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          nodeTaintsPolicy: Honor
+          labelSelector:
+            matchLabels:
+              gateway-proxy: http-gateway
+    service:
+      type: NodePort
+      externalTrafficPolicy: Cluster
+      ports:
+        - port: 8081
+          nodePort: 30081
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: http-gateway
+  namespace: kgateway-system
+spec:
+  gatewayClassName: kgateway
+  infrastructure:
+    parametersRef:
+      group: gateway.kgateway.dev
+      kind: GatewayParameters
+      name: http-gateway-parameters
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 8081
+      allowedRoutes:
+        namespaces:
+          from: All

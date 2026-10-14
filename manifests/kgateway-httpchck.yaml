@@ -1,0 +1,71 @@
+---
+# Health-check target for the external HAProxy (backend k8s-ingress-kgateway).
+# Served through Gateway kgateway-system/http-gateway via HTTPRoute
+# kgateway-system/httpcheck (http-route.yaml), host kgatewayhttpcheck.example.corp.
+# 2 replicas so a single pod restart doesn't mark every HAProxy server DOWN.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: httpcheck
+  namespace: kgateway-system
+data:
+  healthz: |
+    OK
+  index.html: |
+    <!DOCTYPE html>
+    <html>
+      <head><meta charset="utf-8"><title>kgateway health check</title></head>
+      <body>
+        <h1>kgateway health check</h1>
+        <p>Gateway kgateway-system/http-gateway is routing traffic. Health endpoint: /healthz</p>
+      </body>
+    </html>
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: httpcheck
+  namespace: kgateway-system
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: httpcheck
+  template:
+    metadata:
+      labels:
+        app: httpcheck
+    spec:
+      containers:
+        - name: httpcheck
+          image: nginx:stable
+          ports:
+            - name: http
+              containerPort: 80
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 5
+          volumeMounts:
+            - name: html
+              mountPath: /usr/share/nginx/html
+              readOnly: true
+      volumes:
+        - name: html
+          configMap:
+            name: httpcheck
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: httpcheck
+  namespace: kgateway-system
+spec:
+  selector:
+    app: httpcheck
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+  type: ClusterIP
